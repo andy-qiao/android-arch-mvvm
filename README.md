@@ -1,52 +1,52 @@
-# Android之MVVM新姿势探索
+# Android开发之MVVM新姿势探索
 
-### 一、同一个世界，同一个痛
+### 一、同一个世界，同一个轮回
 
-网上有不少关于Android架构的讨论，如`MVC`,	`MVP`,`MVVM`。这些本质上是一种代码架构思想，并没有明显的好歹之分，**关键看应用的场景以及实现的细节**。或许你跟我一样，写过很多代码，也重构过很多次。从混沌状态，进入清晰状态，随着业务发展及程序员修仙等级的良莠不齐，项目代码又再次进入隐忍状态。周而复始，bug不断，其乐无穷。
+网上有不少关于Android架构的讨论，如`MVC`，	`MVP`，`MVVM`。本质上都是一种代码架构思想，并没有明显的孰优孰劣，**关键看应用的场景以及实现的细节**。或许你跟我一样，写过很多代码，也重构过很多次。项目代码往往起初是混沌状态，再渐至清晰明朗，又随着业务发展及程序员修仙等级的良莠不齐，再次进入隐忍状态。周而复始，bug不断，但也其乐无穷。
 
-本没有架构，说的人多就有了。起初并没有明确的架构概论，Android的API已经基本规范我们的代码结构。`Activity`,`Fragment`负责UI显示和交互，以此为入口，引入一系列的工具类(xxutils, xxhelper)，实体类（xxmodel，xxbean,xxentity）和一些第三方类库（Okhttp, EventBus, Glide,GreenDao..），外加遵循基本的设计模式，一个项目雏形就出来了。再往后发展，发现UI层俨然成了一个大胖子，跑一下就大喘气。不行，我们要重构，手撕大胖子。这样就多了一些代码层次，这时面临新的问题：
+本没有架构，说的人多就有了。还记得最初写Android代码的时候，应该没有明确的架构概念。Android的四大组件已经基本规范我们的代码结构。`Activity`，`Fragment`负责UI显示和交互。以此为入口，引入一系列的工具类(xxUtil，xxHelper)，实体类（xxModel，xxBean，xxEntity）和一些第三方类库（Okhttp，EventBus，Glide，GreenDao..），再遵循基本的设计模式，一个项目雏形就出来了。再往后发展，定会发现UI层俨然成了一个大胖子，无从下手。不行，我们要重构，要手撕大胖子。于是乎，就开始不断地总结，抽象，分层级。期间估摸会遇到如下问题：
 
 * 如何规范或约束每一层的职责
-* 各层次之间如何通讯（调用）
+* 各层级的依赖关系，及如何通讯（调用）
 * 如何适应Android生命周期相关的交互
 
-为了解决上面的问题，于是乎各种M\*\*架构就被总结并应用上了。近来有涉猎Android官方推出新框架[Android Architecture Components](https://developer.android.google.cn/topic/libraries/architecture/index.html)及[RxJava](https://github.com/ReactiveX/RxJava)，将两者结合起来，发现可以产生新的开发姿势。
+为了解决上面的问题，各种Mxx架构就被总结并应用上了。近来有涉猎[RxJava](https://github.com/ReactiveX/RxJava)和Android官方推出新框架[Android Architecture Components](https://developer.android.google.cn/topic/libraries/architecture/index.html)，发现将两者有机地结合起来，可以产生新的开发姿势。
 
 ### 二、MVVM概略
 
-不了解**Android Architecture Components**和**RxJava**的同学，最好能先查阅相关资料，了解基本使用就行。来！上图。本图来着[谷歌官方](https://developer.android.google.cn/topic/libraries/architecture/guide.html#the_final_architecture)，本文将会围绕该图的实现进行探讨。
+不明白**Android Architecture Components**和**RxJava**为何物的，最好先查阅相关资料，了解基本使用就行。来！上个[谷歌官方](https://developer.android.google.cn/topic/libraries/architecture/guide.html#the_final_architecture)架构图，本文将会围绕该图的实现进行探讨。
 
 ![](doc/0.png)
 
-这是一张MVVM（Model-View-ViewModle）架构图。简略介绍各个模块：
+这是一张MVVM（Model-View-ViewModle）结构的架构图。简介一下各个模块：
 
-**View层** 绿色框中的`Activity/Fragment`，继承至`LifecycleActivity\LifecycleFragment`，是UI控件的宿主。核心负责：
+**View层** 绿色框中的`Activity/Fragment`，继承至`LifecycleActivity\LifecycleFragment`，是UI控件的宿主。核心职责是：
 
-* 更新UI控件显示，包括状态及数据
+* 更新UI控件显示，包括状态及数据，由ViewModel驱动
 * 监听UI事件及其生命周期，驱动ViewModel
 
 View层不直接处理任何业务逻辑及数据加工。尽量做到瘦身，代码逻辑简约，减轻UI线程负担。
 
-**ViewModel层** 蓝色框的`ViewModel`。只做业务逻辑操作，不持有任何UI控件的引用。那数据的更新如何通知到View层，这就要仰仗`LiveData`,具体使用后面会提及。
+**ViewModel层** 蓝色框的`ViewModel`。只做业务逻辑操作，不持有任何UI控件的引用。那数据的更新如何通知到View层，这就要仰仗`LiveData`，具体使用后面会提及。
 
 **Model层** 橘黄色框的`Repository`及其下都是Model层。Model层就是数据层。数据来源有：
 
 * 本地存储数据，如数据库，文件，SharedPreferences（本质也是文件）
 * 内存的缓存或临时数据
-* 网络数据，通过各种网络协议获取的
+* 通过各种网络协议获取的远程数据
 
-`Repository`是数据仓库，整合各种来源的数据，统一暴露给ViewModel层使用。官方新框架在这一层只提供给了一个新的sqlite数据库封装类库[Room](https://developer.android.google.cn/topic/libraries/architecture/room.html)，这是可选。换言之，官方只给了指导思想，未有具体方案，你或许有疑问：
+`Repository`是数据仓库，整合各路来源的数据，再统一暴露给ViewModel层使用。官方新框架在这一层只提供给了一个新的SQLite数据库封装类库[Room](https://developer.android.google.cn/topic/libraries/architecture/room.html)，这是可选的。换言之，Model层，官方只提供指导思想，并未有具体实现方案。那问题来了：
 
 * Model层如何与ViewModel通信
 * Repository 如何整合各路数据，进行业务处理
 
-现在对官方新架构组件实现MVVM应该有个基本认知，再换个姿势看看各个层次的依赖。
+基本了解官方新架构组件后，再换个姿势看看各个层次的依赖。
 
 ![](doc/1.png)
 
-等等，这依赖图跟平常看到的有点不一样啊。通常View与ViewMode都是双向依赖的，即双向绑定的，即view的改动会反馈到viewmodel,反之亦然。Android官方提供的[Data Binding](https://developer.android.google.cn/topic/libraries/data-binding/index.html)类库，可实现该功能。但是看完使用后，蛋蛋有点隐隐作痛，有种当年做网站使用模板引擎的既视感。在xml布局文件添加过多逻辑，不知是一种退步还是进步。这里我们使用`LiveData`类实现单向绑定，对使用者相对友好。强调一点：**上层只依赖临近的下层，下层不可调用上层**
+等等，这依赖图跟平常看到的有点不一样啊。通常View与ViewMode是双向绑定的，即View的改动会反馈到ViewModel，反之亦然。官方提供的[Data Binding](https://developer.android.google.cn/topic/libraries/data-binding/index.html)类库，可实现该功能。但在看完使用说明后，蛋蛋有点隐隐作痛，有种当年做网站使用模板引擎的既视感。在xml布局文件添加过多逻辑，不知是一种退步还是进步。这里我们使用`LiveData`类实现单向绑定，对使用者相对友好。强调一点：**上层只依赖临近的下层，下层不可调用上层**
 
-但是...但是新姿势在哪里啊？莫急,往下look。
+但是...但是新姿势在哪里？莫急，各位看客请继续往下look。
 
 ### 3、开启新姿势
 
@@ -54,7 +54,7 @@ View层不直接处理任何业务逻辑及数据加工。尽量做到瘦身，�
 
 ### 3.1、ViewModel调用Model
 
-跟第一张比较，Model层的实现细化了许多。model是个容易误会的词，可等同与JavaBean，Entity等实体类，亦可指广义上的数据层，本文改用Module代指后者。不同的业务模块归类到不同的Module类，如用户模块`UserModule`，直播模块`LiveModule`。那**Mudule该如何封装方法给ViewModel调用？**。地球人都知道UI线程不可做耗时操作。这样Module提供的方法分两种：耗时和非耗时。
+这张图Model层的实现细化了许多。Model是个容易混淆的词，可等同与JavaBean，Entity等实体类，亦可指广义上的数据层，本文改用Module代指后者。不同的业务模块归类到不同的Module类，如用户模块`UserModule`，直播模块`LiveModule`。那**Mudule该如何封装方法给ViewModel调用？**。地球人都知道UI线程不可做耗时操作。这样Module提供的方法分两种：非耗时和耗时。
 
 #### 非耗时
 
@@ -71,7 +71,7 @@ public interface UserModule {
 
 #### 耗时
 
-耗时调用通常是跟IO相关或复杂的计算。如
+耗时调用通常是与IO操作或复杂计算相关。如
 
 ```
 public interface UserModule {
@@ -80,20 +80,20 @@ public interface UserModule {
 	...
 }
 ```
-登录操作通常需要服务端验证，获取用户信息，本地用户信息更新，发出登录状态变化通知等，显然不宜在UI线程执行，那只能辛苦子线程了。
+登录操作通常需要服务端验证，获取用户信息，本地用户信息更新，发出登录状态变化通知等，显然不宜在UI线程执行，那只能交付子线程执行。
 
-子线程干完活，需要告诉调用者：回调or事件通知？这里使用回调更适合，因为**事件通知**是一对多的关系，而**回调**是一对一。一对多就意味需要做很多附加操作去保证调用的上下文，避免请求与响应错乱。
+子线程干完活，需要告诉调用者：回调or事件通知？这里使用回调更适合，因为**事件通知**是一对多的关系，而**回调**是一对一。一对多就意味需要做很多附加操作去确保调用的上下文，避免请求与响应错乱。
 
-另外，若页面准备退出，而此时子线程还在干活，则需要取消任务。综合所诉，关键代码大概是这样的：
+另外，若页面准备退出，而此时子线程还在干活，则需要取消任务。综上所诉，关键代码大概是这样的：
 
 ```
 // 用户模块相关方法定义
 public interface UserModule {
 	...
-	// 获取登录状态
+	// 获取登录状态，非耗时操作
 	boolean isLogin();
 	
-	// 进行登录操作
+	// 进行登录，耗时操作
 	ModuleCall<LoginResult> login(String username, String password);
 	...
 }
@@ -141,14 +141,14 @@ public class ModuleResult<T> {
 }
 
 ```
-使用过`OkHttp`或`retrofit`类库的哥们，应该对这种封装方式很熟悉。Module方法调用后返回ModuleCall对象，再利用该对象进行异步调用和取消操作。或许，你已经注意到`UserModule`是个接口，那该如何调用啊？
+这里采用了与`OkHttp`、`retrofit`类似的调用封装方式。Module方法调用后返回ModuleCall对象，再利用该对象进行取消操作和异步调用（没有同步调用）。应该有看客注意到`UserModule`是个接口，那该如何使用呢？
 
 ### 3.2、Module的接口与实现
 
-瞧一瞧UserModule更详细的代码
+下面是`UserModule`更详细的代码
 
 ```
-// UserModule接口定义
+// UserModule的接口定义
 @ProxyTarget(UserModuleImpl.class)
 public interface UserModule extends BaseModule {
 
@@ -157,7 +157,7 @@ public interface UserModule extends BaseModule {
     ModuleCall<LoginResult> login(String username, String password);
 }
 
-// UserModule接口实现（描述不准确啊）
+// UserModule相应的实现类，注意，不是实现UserModule接口
 public class UserModuleImpl extends BaseModuleImpl {
 
     public boolean isLogin() {
@@ -207,52 +207,48 @@ class ModuleManager {
 
 ```
 
-代码贴得略多了些，容我徐徐道来。首先，是否有点诧异UserModuleImpl居然不是UserModule的实现类，`login`方法，一个返回`ModuleCall<LoginResult>`，一个返回 `Observable<LoginResult>` ,但是方法签名是一样的。而`isLogin`方法又完全一样。这里使用一些约定策略：
+代码贴得略多了些，容我徐徐道来。首先，是否有点诧异`UserModuleImpl`居然没有实现接口`UserModule`。注意`login`方法的返回值类型，前者返回`Observable<LoginResult>`，而后者返回`ModuleCall<LoginResult>` ，但是方法签名是一样的。而`isLogin`方法又完全一样。这里有一些约定策略：
 
-* 一个Module接口就有相应的一个Module实现类
-* Module实现类，可通过其基类`BaseModuleImpl`的`getModule`方法获取其他Module实现类，即Module实现类之间是可相互调用的。
-* Module实现类阻塞的方法返回`Observable<T>`, 返回其他类型的表示非阻塞方法。
-* Module接口暴露给ViewModule调用，它代理了相应的实现类的方法。
+* 一个Module接口就有相应的一个Module实现类，两者**非实现**关系
 
-看到这里，你应该还有许多疑问：
+* Module实现类，可通过其基类`BaseModuleImpl`的`getModule`方法获取其他Module实现类的实例，即Module实现类之间可相互调用
 
-* `Observable`是什么鬼？
-* Module接口是如何关联到相应的实现类的，并调用相应的方法？
+* Mudule接口定义的方法返回值若是`ModuleCall<T>`，则其关联的实现类必须有相同签名，返回值类型是`Observable<T>`，`Flowable<T>`，`Single<T>`，`Maybe<T>`之一的方法
 
-#### 关于Observable
+* Mudule接口定义的方法返回值若非`ModuleCall<T>`，则其关联的实现类必须有相同签名和返回值类型的方法
 
-`Observable`是鼎鼎大名的类库**RxJava**提供的类。RxJava很强大，如同胶水，可方便的组织代码。上图中最底层的数据库，文件及网络操作也可采用RxJava类封装。这样各种业务逻辑都可方便串联起来，包括其他实现类的功能，很带劲。`Observable`也具有"UI线程回调"和”任务取消“功能，那为什么不直接将`Observable`返回给ViewModel层，还要转为ModuleCall\<T\>呢，两个原因：
+* Module接口暴露给ViewModule调用，它代理了相应的实现类的方法
 
-* 接口统一，便于调用 RxJava除了`Observable`，还有`Single`,`Flowable`,`Maybe`
-* 简化代码，看MeduleCall的实现（只实现转换Observable），不用自己去设置`observeOn(AndroidSchedulers.mainThread())`(主线程回调)，以及处理冗长的回调。
+#### 关于Observable，Flowable，Single，Maybe
+
+它们都来至于鼎鼎大名的类库**RxJava**。RxJava非常强大，如同胶水，可方便的组织代码。上图中最底层的数据库、文件及网络操作也可采用RxJava来封装。这样各种业务逻辑都可方便串联起来，很带劲。`Observable`等也具有"UI线程回调"和”任务取消“功能，那为什么不直接将它们返回给ViewModel层，而非要转为`ModuleCall<T>`？两个原因：
+
+* 接口统一，便于调用。`Observable`，`Single`，`Flowable`，`Maybe`的回调接口都是不一样的
+
+* 简化代码，看ModuleCall的实现可知，不用每次手动设置`observeOn(AndroidSchedulers.mainThread())`(主线程回调)及处理冗长的回调。
 
 ```
 public class ModuleCall<T> {
-    private Observable<T> mObservable;
+	 ...
+    private Object mObservable;
     private ModuleCallback<T> mModuleCallback;
-    private Disposable mDisposable;
-    private volatile boolean mDone = false;
-    private volatile boolean mCanceled = false;
-    private boolean mExecuted = false;
+    private Object mCancelHandle;
+    private ModuleResult<T> mResult = new ModuleResult<>();
 
-    void setObservable(Observable<T> observable) {
+    void setObservable(Object observable) {
         mObservable = observable;
     }
 
     public void cancel() {
         mCanceled = true;
-        if (mDisposable != null) {
-            mDisposable.dispose();
+        if (mCancelHandle instanceof Disposable) {
+            ((Disposable) mCancelHandle).dispose();
+        } else if (mCancelHandle instanceof Subscription) {
+            ((Subscription) mCancelHandle).cancel();
         }
     }
 
-    public boolean isDone() {
-        return mDone || mCanceled;
-    }
-
-    public boolean isCanceled() {
-        return mCanceled;
-    }
+	 ...
 
     public void enqueue(final ModuleCallback<T> callback) {
         synchronized (this) {
@@ -265,21 +261,33 @@ public class ModuleCall<T> {
             return;
         }
         mModuleCallback = callback;
-        final ModuleResult<T> result = new ModuleResult<>();
-        mObservable.observeOn(AndroidSchedulers.mainThread()).subscribe(new Observer<T>() {
+
+        if (mObservable instanceof Observable) {
+            subscribeObservable((Observable<T>) mObservable);
+        } else if (mObservable instanceof Single) {
+            subscribeSingle((Single<T>) mObservable);
+        } else if (mObservable instanceof Flowable) {
+            subscribeFlowable((Flowable<T>) mObservable);
+        } else {
+            subscribeMaybe((Maybe<T>) mObservable);
+        }
+    }
+
+    private void subscribeObservable(Observable<T> observable) {
+        observable.subscribe(new Observer<T>() {
             @Override
             public void onSubscribe(@NonNull Disposable d) {
-                mDisposable = d;
+                mCancelHandle = d;
             }
 
             @Override
             public void onNext(@NonNull T t) {
-                result.data(t);
+                mResult.data(t);
             }
 
             @Override
             public void onError(@NonNull Throwable e) {
-                result.throwable(e);
+                mResult.throwable(e);
                 done();
             }
 
@@ -287,23 +295,35 @@ public class ModuleCall<T> {
             public void onComplete() {
                 done();
             }
-
-            private void done() {
-                mDone = true;
-                if (mModuleCallback == null || mCanceled) {
-                    return;
-                }
-                mModuleCallback.onModuleCallback(result);
-            }
         });
+    }
+
+    private void subscribeSingle(Single<T> single) {
+        ...
+    }
+
+    private void subscribeFlowable(Flowable<T> flowable) {
+        ...
+    }
+
+    private void subscribeMaybe(Maybe<T> maybe) {
+        ...
+    }
+
+    private void done() {
+        mDone = true;
+        if (mModuleCallback == null || mCanceled) {
+            return;
+        }
+        mModuleCallback.onModuleCallback(mResult);
     }
 
 }
 ```
 
-#### Mdule接口关联其实现类
+#### Module接口关联其实现类
 
-通过注解`ProxyTarget`将Module接口和其实现类关联起来
+通过注解`ProxyTarget`将Module接口与其实现类关联起来
 
 ```
 @ProxyTarget(UserModuleImpl.class)
@@ -312,14 +332,14 @@ public interface UserModule extends BaseModule {
     ModuleCall<LoginResult> login(String username, String password);
 }
 ```
-`UserModule`是接口，`UserModelImpl`又不是其程序语言层面的实现，那ViewModel该如何调用呢？上代码：
+`UserModule`是接口，`UserModelImpl`是其逻辑层面而非程序语言层面的实现，那ViewModel该如何调用呢？上代码：
 
 ```
 class ModuleManager {
     private static Map<Class<?>, BaseModule> mModuleCache = new ConcurrentHashMap<>();
     private static Map<Class<?>, BaseModuleImpl> mModuleImplCache = new ConcurrentHashMap<>();
 
-	 // 获取modue接口的真正实现类
+	 // 获取module接口的代理实例(单列)
     public static <T extends BaseModule> T get(Class<T> moduleClass) {
         BaseModule module = mModuleCache.get(moduleClass);
         if (module != null) {
@@ -410,13 +430,13 @@ class ModuleManager {
 }
 ```
 
-调用`ModuleManager.get(UserModule.class)`就可以获取UserModule对象。通过`ProxyTarget`注解，建立Moduel接口和Module实现类的方法的映射。再生成代理类，将接口方法的调用转换为接口实现类的调用。
+调用`ModuleManager.get(UserModule.class)`就可以获取UserModule的实例，该实例是使用动态代理技术生成的。通过`ProxyTarget`注解，建立Moduel接口和Module实现类的方法的映射。UserModule的实例根据这份映射表，将接口方法的调用转换为UserModuleImpl的实例的调用。
 
-至此，已经基本理清Model层的内部逻辑以及ViewModel层调用Model层的方式。但是还不够完善？
+至此，已经基本理清Model层的内部逻辑以及ViewModel层调用Model层的方式。但是还有一个可大可小的问题？
 
 ### 3.3 还是关于调用取消
 
-下面是`LoginViewModel`的基本实现，继承至官方新架构类库提供的`ViewModel`。当`LoginViewModel`所依附的`Activity\Fragment`被销毁时会自动回调其`onCleared`方法，并将相关的Module方法取消。老铁，没毛病。莫急，倘若有很多ModuleCall，那就要手动维持这些引用，并都要在`onCleared`进行取消操作。有时大意，忘了取消就可能产生内存泄漏。倘若能将关于一个`ViewModel`的`ModuleCall`自动收集起来,在`onCleared`进行统一取消，那该是多么美妙的事情。
+下面是`LoginViewModel`的基本实现，继承至官方新架构类库提供的`ViewModel`。当`LoginViewModel`所依附的`Activity\Fragment`被销毁时会自动回调其`onCleared`方法，并将相关的Module方法取消。老铁，没毛病。莫急，倘若有很多`ModuleCall`，那就要手动维持这些引用，并都要在`onCleared`进行取消操作。有时大意，忘了取消就可能产生内存泄漏。倘若能将关于一个`ViewModel`关联的所有`ModuleCall`自动收集起来，在回调方法`onCleared`进行统一取消，那该是多么美好的事情。
 
 ```
 public class LoginlViewModel extends ViewModel {
@@ -445,7 +465,7 @@ public class LoginlViewModel extends ViewModel {
     }
 }
 ```
-解决方法还是动态代理，对Moduel接口二次代理，即不直接使用`ModuleManager.getModule`，而是调用代理类。代理类会将收集ModuleCal，便于统一处理。抽象出两个基础类`BaseViewModel`和`BaseAndroidViewModel`
+解决方案还是动态代理技术。对Module接口二次代理，即不直接使用`ModuleManager.getModule`返回的实例，而是再利用Module接口，生成一个新的实例。对该实例的调用都将映射对应的`ModuleManager.getModule`返回的实例的调用，并将返回的`ModuleCall`收集起来，便于统一取消调用。抽象出两个基础类`BaseViewModel`和`BaseAndroidViewModel`
 
 ```
 public class BaseViewModel extends ViewModel {
@@ -547,7 +567,7 @@ public class ModuleDelegate {
     }
 }
 ```
-这种方案有个明显的缺点：一个ViewModel调用了多少个Module，就将产生多少个Module代理对象，虽然ViewModel销毁后，这些代理对象也随之可被回收，还是有些性能代价。现在`LoginViewModel`可简化为：
+这种方案有个明显的缺点：一个ViewModel调用了多少个Module，就将产生多少个Module实例，虽然ViewModel销毁后，这些实例也随之可被回收，还是有些性能代价。现在`LoginViewModel`可简化为：
 
 ```
 public class LoginlViewModel extends ViewModel {
@@ -571,7 +591,7 @@ public class LoginlViewModel extends ViewModel {
 
 ### 3.3 View与ViewModel交互
 
-官方架构提供的`LiveData`可实现数据驱动UI,如下代码：
+官方架构提供的`LiveData`可实现数据驱动UI，代码如下：
 
 ```
 public class LoginActivity extends LifecycleActivity implements View.OnClickListener {
@@ -613,18 +633,18 @@ public class LoginActivity extends LifecycleActivity implements View.OnClickList
     }
 }
 ```
-通过官方框架提供的`ViewModelProviders.of(this).get(LoginViewModel.class)`可获取到`LoginViewModel`。显然`LoginActivity`核心只做两件事情：
+通过官方框架提供的`ViewModelProviders.of(this).get(LoginViewModel.class)`可获取到`LoginViewModel`。显然`LoginActivity`主要做两件事情：
 
 * 监听事件，调用ViewModel的相关方法
-* 绑定数据，数据改变时，进行UI更新操作
+* 绑定数据（`LiveData`），数据改变时，进行UI更新操作
 
 ### 4、再说两句
 
-结合官方提供的新架构类库及强大的RxJava，再加上约束（规范）各个层次调用，可快速搭建一个健壮的常规App问题。当然这只是一个应用的大概，还有很多问题待探索：
+结合强大的RxJava和官方新架构类库，再加上对各个层级调用的约束（规范），可快速搭建一个健壮的常规App问题。这只是一个App的概貌，还有很多问题待探索：
 
 * 多进程各个Module如何通讯
 * 大型项目，并行开发，如何处理未实现的Module，实现快速编译
-* 复杂的独立UI控件，其中包含一些复杂的业务逻辑处理，如播放器控件，该如何调用调用Mudele
+* 复杂的独立UI控件，其中包含一些复杂的业务逻辑处理，如播放器控件，该如何调用Module
 * 事件通知（如EventBus）往往少不了，全局满天飞的事件该如何约束，使用不当，很容易造成各个层次混乱
 
-最后的最后，想看源码的可以戳[这里](https://github.com/linyongsheng/android-arch-mvvm)。官方新架构类库还是alpha版，整套新姿势还未经过严格测试及生产环境验证，慎用。
+最后的最后，想看源码的可以戳[这里](https://github.com/linyongsheng/android-arch-mvvm)。官方新架构类库还是alpha版，这个新姿势还未经过严格测试及生产环境验证，慎用。
