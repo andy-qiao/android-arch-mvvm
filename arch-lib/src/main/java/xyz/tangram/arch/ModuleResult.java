@@ -1,10 +1,9 @@
 package xyz.tangram.arch;
 
 /**
- * 创建人：付三
- * 创建时间：2017/8/31 17:32
+ * Module异步回调结果封装
+ * @param <T>
  */
-
 public class ModuleResult<T> {
     private Throwable mThrowable;
     private T mData;

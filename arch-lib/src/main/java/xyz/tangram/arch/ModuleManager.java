@@ -15,14 +15,15 @@ import io.reactivex.Observable;
 import io.reactivex.Single;
 
 /**
- * 创建人：付三
- * 创建时间：2017/8/31 17:01
+ * Module管理类
  */
-
 class ModuleManager {
     private static Map<Class<?>, BaseModule> mModuleCache = new ConcurrentHashMap<>();
     private static Map<Class<?>, BaseModuleImpl> mModuleImplCache = new ConcurrentHashMap<>();
 
+    /**
+     * 获取Module接口代理对象，同样类型的Module将获取到相同的对象
+     */
     public static <T extends BaseModule> T get(Class<T> moduleClass) {
         BaseModule module = mModuleCache.get(moduleClass);
         if (module != null) {
@@ -42,6 +43,9 @@ class ModuleManager {
         }
     }
 
+    /**
+     * 获取Module实现类的实例，同样类型的Module实现类将获取到相同的对象
+     */
     static <T extends BaseModuleImpl> T getImpl(Class<T> moduleClass) {
         BaseModuleImpl module = mModuleImplCache.get(moduleClass);
         if (module != null) {
@@ -61,6 +65,7 @@ class ModuleManager {
         }
     }
 
+    // 创建Module接口代理对象
     private static <T extends BaseModule> T create(Class<T> moduleClass) throws Exception {
         ProxyTarget proxyTarget = moduleClass.getAnnotation(ProxyTarget.class);
         Class<? extends BaseModuleImpl> targetClass = proxyTarget.value();

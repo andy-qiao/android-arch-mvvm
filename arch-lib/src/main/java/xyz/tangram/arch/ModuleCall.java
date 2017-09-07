@@ -14,10 +14,9 @@ import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
 
 /**
- * 创建人：付三
- * 创建时间：2017/8/31 17:31
+ * Module异步方法调用返回值封装，可进行取消操作和设置回调
+ * 调用其enqueue方法，才真正触发任务
  */
-
 public class ModuleCall<T> {
     private Object mObservable;
     private ModuleCallback<T> mModuleCallback;

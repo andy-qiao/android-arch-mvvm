@@ -1,14 +1,12 @@
 package xyz.tangram.arch;
 
 /**
- * 创建人：付三
- * 创建时间：2017/8/31 17:21
+ * 基础模块实现类，所有模块实现类须继承该类
  */
-
 public class BaseModuleImpl {
 
     /**
-     * 获取模块实现类
+     * 获取其他模块实现类
      * @param moduleClass
      * @param <T>
      */

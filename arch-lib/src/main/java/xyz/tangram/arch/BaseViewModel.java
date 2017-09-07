@@ -3,10 +3,8 @@ package xyz.tangram.arch;
 import android.arch.lifecycle.ViewModel;
 
 /**
- * 创建人：付三
- * 创建时间：2017/9/4 18:14
+ * 基础ViewModel，可自动取消Module的调用
  */
-
 public class BaseViewModel extends ViewModel {
     private ModuleDelegate mDelegate = new ModuleDelegate();
 
