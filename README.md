@@ -1,5 +1,7 @@
 #Android之MVVM新姿势探索
+
 ###一、同一个世界，同一个痛
+
 网上有不少关于Android架构的讨论，如`MVC`,	`MVP`,`MVVM`。这些本质上是一种代码架构思想，并没有明显的好歹之分，**关键看应用的场景以及实现的细节**。或许你跟我一样，写过很多代码，也重构过很多次。从混沌状态，进入清晰状态，随着业务发展及程序员修仙等级的良莠不齐，项目代码又再次进入隐忍状态。周而复始，bug不断，其乐无穷。
 
 本没有架构，说的人多就有了。起初并没有明确的架构概论，Android的API已经基本规范我们的代码结构。`Activity`,`Fragment`负责UI显示和交互，以此为入口，引入一系列的工具类(xxutils, xxhelper)，实体类（xxmodel，xxbean,xxentity）和一些第三方类库（Okhttp, EventBus, Glide,GreenDao..），外加遵循基本的设计模式，一个项目雏形就出来了。再往后发展，发现UI层俨然成了一个大胖子，跑一下就大喘气。不行，我们要重构，手撕大胖子。这样就多了一些代码层次，这时面临新的问题：
@@ -11,6 +13,7 @@
 为了解决上面的问题，于是乎各种M\*\*架构就被总结并应用上了。近来有涉猎Android官方推出新框架[Android Architecture Components](https://developer.android.google.cn/topic/libraries/architecture/index.html)及[RxJava](https://github.com/ReactiveX/RxJava)，将两者结合起来，发现可以产生新的开发姿势。
 
 ###二、MVVM概略
+
 不了解**Android Architecture Components**和**RxJava**的同学，最好能先查阅相关资料，了解基本使用就行。来！上图。本图来着[谷歌官方](https://developer.android.google.cn/topic/libraries/architecture/guide.html#the_final_architecture)，本文将会围绕该图的实现进行探讨。
 
 ![](doc/0.png)
@@ -54,6 +57,7 @@ View层不直接处理任何业务逻辑及数据加工。尽量做到瘦身，�
 跟第一张比较，Model层的实现细化了许多。model是个容易误会的词，可等同与JavaBean，Entity等实体类，亦可指广义上的数据层，本文改用Module代指后者。不同的业务模块归类到不同的Module类，如用户模块`UserModule`，直播模块`LiveModule`。那**Mudule该如何封装方法给ViewModel调用？**。地球人都知道UI线程不可做耗时操作。这样Module提供的方法分两种：耗时和非耗时。
 
 #### 非耗时
+
 非耗时调用通常是直接内存操作的。如
 
 ```
@@ -66,6 +70,7 @@ public interface UserModule {
 内存维持一个变量记录着当前的登录状态，`isLogin`直接将该变量值返回就行。
 
 #### 耗时
+
 耗时调用通常是跟IO相关或复杂的计算。如
 
 ```
@@ -139,6 +144,7 @@ public class ModuleResult<T> {
 使用过`OkHttp`或`retrofit`类库的哥们，应该对这种封装方式很熟悉。Module方法调用后返回ModuleCall对象，再利用该对象进行异步调用和取消操作。或许，你已经注意到`UserModule`是个接口，那该如何调用啊？
 
 ### 3.2、Module的接口与实现
+
 瞧一瞧UserModule更详细的代码
 
 ```
@@ -214,6 +220,7 @@ class ModuleManager {
 * Module接口是如何关联到相应的实现类的，并调用相应的方法？
 
 #### 关于Observable
+
 `Observable`是鼎鼎大名的类库**RxJava**提供的类。RxJava很强大，如同胶水，可方便的组织代码。上图中最底层的数据库，文件及网络操作也可采用RxJava类封装。这样各种业务逻辑都可方便串联起来，包括其他实现类的功能，很带劲。`Observable`也具有"UI线程回调"和”任务取消“功能，那为什么不直接将`Observable`返回给ViewModel层，还要转为ModuleCall\<T\>呢，两个原因：
 
 * 接口统一，便于调用 RxJava除了`Observable`，还有`Single`,`Flowable`,`Maybe`
@@ -295,6 +302,7 @@ public class ModuleCall<T> {
 ```
 
 #### Mdule接口关联其实现类
+
 通过注解`ProxyTarget`将Module接口和其实现类关联起来
 
 ```
@@ -407,6 +415,7 @@ class ModuleManager {
 至此，已经基本理清Model层的内部逻辑以及ViewModel层调用Model层的方式。但是还不够完善？
 
 ### 3.3 还是关于调用取消
+
 下面是`LoginViewModel`的基本实现，继承至官方新架构类库提供的`ViewModel`。当`LoginViewModel`所依附的`Activity\Fragment`被销毁时会自动回调其`onCleared`方法，并将相关的Module方法取消。老铁，没毛病。莫急，倘若有很多ModuleCall，那就要手动维持这些引用，并都要在`onCleared`进行取消操作。有时大意，忘了取消就可能产生内存泄漏。倘若能将关于一个`ViewModel`的`ModuleCall`自动收集起来,在`onCleared`进行统一取消，那该是多么美妙的事情。
 
 ```
@@ -561,6 +570,7 @@ public class LoginlViewModel extends ViewModel {
 ```
 
 ### 3.3 View与ViewModel交互
+
 官方架构提供的`LiveData`可实现数据驱动UI,如下代码：
 
 ```
@@ -609,6 +619,7 @@ public class LoginActivity extends LifecycleActivity implements View.OnClickList
 * 绑定数据，数据改变时，进行UI更新操作
 
 ### 4、再说两句
+
 结合官方提供的新架构类库及强大的RxJava，再加上约束（规范）各个层次调用，可快速搭建一个健壮的常规App问题。当然这只是一个应用的大概，还有很多问题待探索：
 
 * 多进程各个Module如何通讯
