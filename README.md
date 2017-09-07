@@ -1,6 +1,6 @@
-#Android之MVVM新姿势探索
+# Android之MVVM新姿势探索
 
-###一、同一个世界，同一个痛
+### 一、同一个世界，同一个痛
 
 网上有不少关于Android架构的讨论，如`MVC`,	`MVP`,`MVVM`。这些本质上是一种代码架构思想，并没有明显的好歹之分，**关键看应用的场景以及实现的细节**。或许你跟我一样，写过很多代码，也重构过很多次。从混沌状态，进入清晰状态，随着业务发展及程序员修仙等级的良莠不齐，项目代码又再次进入隐忍状态。周而复始，bug不断，其乐无穷。
 
@@ -12,7 +12,7 @@
 
 为了解决上面的问题，于是乎各种M\*\*架构就被总结并应用上了。近来有涉猎Android官方推出新框架[Android Architecture Components](https://developer.android.google.cn/topic/libraries/architecture/index.html)及[RxJava](https://github.com/ReactiveX/RxJava)，将两者结合起来，发现可以产生新的开发姿势。
 
-###二、MVVM概略
+### 二、MVVM概略
 
 不了解**Android Architecture Components**和**RxJava**的同学，最好能先查阅相关资料，了解基本使用就行。来！上图。本图来着[谷歌官方](https://developer.android.google.cn/topic/libraries/architecture/guide.html#the_final_architecture)，本文将会围绕该图的实现进行探讨。
 
