@@ -23,17 +23,13 @@ public class ModuleDelegate {
             return (T) module;
         }
         synchronized (mModuleCache) {
-            try {
-                module = mModuleCache.get(moduleClass);
-                if (module == null) {
-                    InvocationHandler invocationHandler = new ModuleInvocationHandler(ModuleManager.get(moduleClass), mModuleCalls);
-                    module = (T) Proxy.newProxyInstance(moduleClass.getClassLoader(), new Class[]{moduleClass}, invocationHandler);
-                    mModuleCache.put(moduleClass, module);
-                }
-                return (T) module;
-            } catch (Throwable t) {
-                throw new RuntimeException("获取module代理 失败 " + moduleClass.getName() + "  " + t);
+            module = mModuleCache.get(moduleClass);
+            if (module == null) {
+                InvocationHandler invocationHandler = new ModuleInvocationHandler(ModuleManager.get(moduleClass), mModuleCalls);
+                module = (T) Proxy.newProxyInstance(moduleClass.getClassLoader(), new Class[]{moduleClass}, invocationHandler);
+                mModuleCache.put(moduleClass, module);
             }
+            return (T) module;
         }
     }
 

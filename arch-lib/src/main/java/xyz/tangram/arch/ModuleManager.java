@@ -2,12 +2,17 @@ package xyz.tangram.arch;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.reactivex.Flowable;
+import io.reactivex.Maybe;
 import io.reactivex.Observable;
+import io.reactivex.Single;
 
 /**
  * 创建人：付三
@@ -32,7 +37,7 @@ class ModuleManager {
                 }
                 return (T) module;
             } catch (Throwable t) {
-                throw new RuntimeException("获取module失败 " + moduleClass.getName() + "  " + t);
+                throw new RuntimeException(String.format("获取%s失败 ", moduleClass.getSimpleName()), t);
             }
         }
     }
@@ -63,13 +68,20 @@ class ModuleManager {
         Method[] targetMethods = targetClass.getDeclaredMethods();
 
         HashMap<Method, Method> methodMap = new HashMap<>();
-        // TODO 完善方法的映射
+        boolean find;
         for (Method method : methods) {
+            find = false;
             for (Method targetMethod : targetMethods) {
                 if (methodEquals(method, targetMethod)) {
+                    // 检查返回值
+                    checkReturnType(method, targetMethod);
+                    find = true;
                     methodMap.put(method, targetMethod);
                     break;
                 }
+            }
+            if (!find) {
+                throw new IllegalArgumentException(String.format("%s::%s没有对应的实现方法", method.getDeclaringClass().getSimpleName(), method.getName()));
             }
         }
         Object targetObject = getImpl(targetClass);
@@ -90,7 +102,7 @@ class ModuleManager {
             Object res = mMethodMap.get(method).invoke(mTargetObject, args);
             if (ModuleCall.class.equals(method.getReturnType())) {
                 ModuleCall call = new ModuleCall();
-                call.setObservable((Observable) res);
+                call.setObservable(res);
                 return call;
             } else {
                 return res;
@@ -98,6 +110,7 @@ class ModuleManager {
         }
     }
 
+    // 判断两个方法的签名是否相同
     private static boolean methodEquals(Method method1, Method method2) {
         if (!method1.getName().equals(method2.getName())) {
             return false;
@@ -114,5 +127,33 @@ class ModuleManager {
         return false;
     }
 
+    // 检查两个方法的返回类型是否符合约定规则
+    private static void checkReturnType(Method method1, Method method2) {
+        Class<?> returnType;
+        Type returnType1, returnType2;
+        if (ModuleCall.class.equals(method1.getReturnType())) { // 异步回调的方法
+            returnType = method2.getReturnType();
+            if (returnType.equals(Observable.class) || returnType.equals(Single.class) || returnType.equals(Flowable.class) || returnType.equals(Maybe.class)) {
+
+                returnType1 = method1.getGenericReturnType();
+                returnType2 = method2.getGenericReturnType();
+
+                if (returnType1 instanceof ParameterizedType && returnType2 instanceof ParameterizedType) { // 都带泛型
+                    // 检查泛型的类型是否一样
+                    if (!((ParameterizedType) returnType1).getActualTypeArguments()[0].equals(((ParameterizedType) returnType2).getActualTypeArguments()[0])) {
+                        throw new IllegalArgumentException(method1.getName() + "方法的返回值类型的泛型的须一样");
+                    }
+                } else if (!(returnType1 instanceof Class && returnType2 instanceof Class)) {
+                    throw new IllegalArgumentException(method1.getName() + "方法的返回值类型的泛型的须一样");
+                }
+            } else {
+                throw new IllegalArgumentException(String.format("%s::%s的返回值类型必须是Observable,Single,Flowable,Maybe之一", method2.getDeclaringClass().getSimpleName(), method2.getName()));
+            }
+        } else {
+            if (!method1.getGenericReturnType().equals(method2.getGenericReturnType())) { //同步调用的返回值必须一样
+                throw new IllegalArgumentException(method1.getName() + "方法的返回值类型不一样");
+            }
+        }
+    }
 
 }

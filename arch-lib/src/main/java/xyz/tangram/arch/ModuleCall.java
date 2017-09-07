@@ -1,8 +1,15 @@
 package xyz.tangram.arch;
 
+import org.reactivestreams.Subscription;
+
+import io.reactivex.Flowable;
+import io.reactivex.FlowableSubscriber;
+import io.reactivex.Maybe;
+import io.reactivex.MaybeObserver;
 import io.reactivex.Observable;
 import io.reactivex.Observer;
-import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.Single;
+import io.reactivex.SingleObserver;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
 
@@ -12,21 +19,24 @@ import io.reactivex.disposables.Disposable;
  */
 
 public class ModuleCall<T> {
-    private Observable<T> mObservable;
+    private Object mObservable;
     private ModuleCallback<T> mModuleCallback;
-    private Disposable mDisposable;
+    private Object mCancelHandle;
     private volatile boolean mDone = false;
     private volatile boolean mCanceled = false;
     private boolean mExecuted = false;
+    private ModuleResult<T> mResult = new ModuleResult<>();
 
-    void setObservable(Observable<T> observable) {
+    void setObservable(Object observable) {
         mObservable = observable;
     }
 
     public void cancel() {
         mCanceled = true;
-        if (mDisposable != null) {
-            mDisposable.dispose();
+        if (mCancelHandle instanceof Disposable) {
+            ((Disposable) mCancelHandle).dispose();
+        } else if (mCancelHandle instanceof Subscription) {
+            ((Subscription) mCancelHandle).cancel();
         }
     }
 
@@ -49,21 +59,33 @@ public class ModuleCall<T> {
             return;
         }
         mModuleCallback = callback;
-        final ModuleResult<T> result = new ModuleResult<>();
-        mObservable.observeOn(AndroidSchedulers.mainThread()).subscribe(new Observer<T>() {
+
+        if (mObservable instanceof Observable) {
+            subscribeObservable((Observable<T>) mObservable);
+        } else if (mObservable instanceof Single) {
+            subscribeSingle((Single<T>) mObservable);
+        } else if (mObservable instanceof Flowable) {
+            subscribeFlowable((Flowable<T>) mObservable);
+        } else {
+            subscribeMaybe((Maybe<T>) mObservable);
+        }
+    }
+
+    private void subscribeObservable(Observable<T> observable) {
+        observable.subscribe(new Observer<T>() {
             @Override
             public void onSubscribe(@NonNull Disposable d) {
-                mDisposable = d;
+                mCancelHandle = d;
             }
 
             @Override
             public void onNext(@NonNull T t) {
-                result.data(t);
+                mResult.data(t);
             }
 
             @Override
             public void onError(@NonNull Throwable e) {
-                result.throwable(e);
+                mResult.throwable(e);
                 done();
             }
 
@@ -71,16 +93,87 @@ public class ModuleCall<T> {
             public void onComplete() {
                 done();
             }
+        });
+    }
 
-            private void done() {
-                mDone = true;
-                if (mModuleCallback == null || mCanceled) {
-                    return;
-                }
-                mModuleCallback.onModuleCallback(result);
+    private void subscribeSingle(Single<T> single) {
+        single.subscribe(new SingleObserver<T>() {
+            @Override
+            public void onSubscribe(@NonNull Disposable d) {
+                mCancelHandle = d;
+            }
+
+            @Override
+            public void onSuccess(@NonNull T t) {
+                mResult.data(t);
+                done();
+            }
+
+            @Override
+            public void onError(@NonNull Throwable e) {
+                mResult.throwable(e);
+                done();
             }
         });
     }
 
+    private void subscribeFlowable(Flowable<T> flowable) {
+        flowable.subscribe(new FlowableSubscriber<T>() {
+            @Override
+            public void onSubscribe(@NonNull Subscription s) {
+                mCancelHandle = s;
+            }
+
+            @Override
+            public void onNext(T t) {
+                mResult.data(t);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                mResult.throwable(t);
+                done();
+            }
+
+            @Override
+            public void onComplete() {
+                done();
+            }
+        });
+    }
+
+    private void subscribeMaybe(Maybe<T> maybe) {
+        maybe.subscribe(new MaybeObserver<T>() {
+            @Override
+            public void onSubscribe(@NonNull Disposable d) {
+                mCancelHandle = d;
+            }
+
+            @Override
+            public void onSuccess(@NonNull T t) {
+                mResult.data(t);
+                done();
+            }
+
+            @Override
+            public void onError(@NonNull Throwable e) {
+                mResult.throwable(e);
+                done();
+            }
+
+            @Override
+            public void onComplete() {
+                done();
+            }
+        });
+    }
+
+    private void done() {
+        mDone = true;
+        if (mModuleCallback == null || mCanceled) {
+            return;
+        }
+        mModuleCallback.onModuleCallback(mResult);
+    }
 
 }

@@ -627,4 +627,4 @@ public class LoginActivity extends LifecycleActivity implements View.OnClickList
 * 复杂的独立UI控件，其中包含一些复杂的业务逻辑处理，如播放器控件，该如何调用调用Mudele
 * 事件通知（如EventBus）往往少不了，全局满天飞的事件该如何约束，使用不当，很容易造成各个层次混乱
 
-最后的最后，想看源码的可以戳[这里]()。官方新架构类库还是alpha版，整套新姿势还未经过严格测试及生产环境验证，慎用。
+最后的最后，想看源码的可以戳[这里](https://github.com/linyongsheng/android-arch-mvvm)。官方新架构类库还是alpha版，整套新姿势还未经过严格测试及生产环境验证，慎用。
