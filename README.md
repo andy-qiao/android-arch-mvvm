@@ -1,6 +1,6 @@
 # Android开发之MVVM新姿势探索
 
-### 一、同一个世界，同一个轮回
+### 1、同一个世界，同一个轮回
 
 网上有不少关于Android架构的讨论，如`MVC`，	`MVP`，`MVVM`。本质上都是一种代码架构思想，并没有明显的孰优孰劣，**关键看应用的场景以及实现的细节**。或许你跟我一样，写过很多代码，也重构过很多次。项目代码往往起初是混沌状态，再渐至清晰明朗，又随着业务发展及程序员修仙等级的良莠不齐，再次进入隐忍状态。周而复始，bug不断，但也其乐无穷。
 
@@ -12,11 +12,11 @@
 
 为了解决上面的问题，各种Mxx架构就被总结并应用上了。近来有涉猎[RxJava](https://github.com/ReactiveX/RxJava)和Android官方推出新框架[Android Architecture Components](https://developer.android.google.cn/topic/libraries/architecture/index.html)，发现将两者有机地结合起来，可以产生新的开发姿势。
 
-### 二、MVVM概略
+### 2、MVVM概略
 
 不明白**Android Architecture Components**和**RxJava**为何物的，最好先查阅相关资料，了解基本使用就行。来！上个[谷歌官方](https://developer.android.google.cn/topic/libraries/architecture/guide.html#the_final_architecture)架构图，本文将会围绕该图的实现进行探讨。
 
-![](doc/0.png)
+![0.png](http://upload-images.jianshu.io/upload_images/1412608-fac3f62e45a39669.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 
 这是一张MVVM（Model-View-ViewModle）结构的架构图。简介一下各个模块：
 
@@ -42,7 +42,7 @@ View层不直接处理任何业务逻辑及数据加工。尽量做到瘦身，�
 
 基本了解官方新架构组件后，再换个姿势看看各个层次的依赖。
 
-![](doc/1.png)
+![1.png](http://upload-images.jianshu.io/upload_images/1412608-d20e7b9214d42cbe.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 
 等等，这依赖图跟平常看到的有点不一样啊。通常View与ViewMode是双向绑定的，即View的改动会反馈到ViewModel，反之亦然。官方提供的[Data Binding](https://developer.android.google.cn/topic/libraries/data-binding/index.html)类库，可实现该功能。但在看完使用说明后，蛋蛋有点隐隐作痛，有种当年做网站使用模板引擎的既视感。在xml布局文件添加过多逻辑，不知是一种退步还是进步。这里我们使用`LiveData`类实现单向绑定，对使用者相对友好。强调一点：**上层只依赖临近的下层，下层不可调用上层**
 
@@ -50,7 +50,7 @@ View层不直接处理任何业务逻辑及数据加工。尽量做到瘦身，�
 
 ### 3、开启新姿势
 
-![](doc/2.png)
+![2.png](http://upload-images.jianshu.io/upload_images/1412608-1665aa53a737e07b.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 
 ### 3.1、ViewModel调用Model
 
@@ -119,25 +119,13 @@ public interface ModuleCallback<T> {
 
 // Module方法调用的结果封装
 public class ModuleResult<T> {
-    private Throwable mThrowable;
-    private T mData;
+    public final Throwable error;
+    public final T data;
 
-    void throwable(Throwable throwable) {
-        this.mThrowable = throwable;
+    public ModuleResult(T data, Throwable error) {
+        this.data = data;
+        this.error = error;
     }
-
-    public Throwable throwable() {
-        return mThrowable;
-    }
-
-    void data(T data) {
-        this.mData = data;
-    }
-
-    public T data() {
-        return mData;
-    }
-
 }
 
 ```
@@ -229,12 +217,7 @@ class ModuleManager {
 
 ```
 public class ModuleCall<T> {
-	 ...
-    private Object mObservable;
-    private ModuleCallback<T> mModuleCallback;
-    private Object mCancelHandle;
-    private ModuleResult<T> mResult = new ModuleResult<>();
-
+    ...
     void setObservable(Object observable) {
         mObservable = observable;
     }
@@ -247,8 +230,6 @@ public class ModuleCall<T> {
             ((Subscription) mCancelHandle).cancel();
         }
     }
-
-	 ...
 
     public void enqueue(final ModuleCallback<T> callback) {
         synchronized (this) {
@@ -274,7 +255,7 @@ public class ModuleCall<T> {
     }
 
     private void subscribeObservable(Observable<T> observable) {
-        observable.subscribe(new Observer<T>() {
+        observable.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(new Observer<T>() {
             @Override
             public void onSubscribe(@NonNull Disposable d) {
                 mCancelHandle = d;
@@ -282,40 +263,38 @@ public class ModuleCall<T> {
 
             @Override
             public void onNext(@NonNull T t) {
-                mResult.data(t);
+                ModuleResult<T> result = new ModuleResult<>(t, null);
+                doCallback(result);
             }
 
             @Override
             public void onError(@NonNull Throwable e) {
-                mResult.throwable(e);
-                done();
+                ModuleResult<T> result = new ModuleResult<>(null, e);
+                doCallback(result);
+                mDone = true;
             }
 
             @Override
             public void onComplete() {
-                done();
+                mDone = true;
             }
         });
     }
 
     private void subscribeSingle(Single<T> single) {
-        ...
+      ...
     }
 
     private void subscribeFlowable(Flowable<T> flowable) {
-        ...
+      ...
     }
 
     private void subscribeMaybe(Maybe<T> maybe) {
-        ...
+      ...
     }
 
-    private void done() {
-        mDone = true;
-        if (mModuleCallback == null || mCanceled) {
-            return;
-        }
-        mModuleCallback.onModuleCallback(mResult);
+    private void doCallback(ModuleResult<T> result) {
+        ...
     }
 
 }
