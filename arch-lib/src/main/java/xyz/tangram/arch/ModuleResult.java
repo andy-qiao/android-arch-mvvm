@@ -5,24 +5,12 @@ package xyz.tangram.arch;
  * @param <T>
  */
 public class ModuleResult<T> {
-    private Throwable mThrowable;
-    private T mData;
+    public final Throwable error;
+    public final T data;
 
-    void throwable(Throwable throwable) {
-        this.mThrowable = throwable;
+    public ModuleResult(T data, Throwable error) {
+        this.data = data;
+        this.error = error;
     }
-
-    public Throwable throwable() {
-        return mThrowable;
-    }
-
-    void data(T data) {
-        this.mData = data;
-    }
-
-    public T data() {
-        return mData;
-    }
-
 }
 

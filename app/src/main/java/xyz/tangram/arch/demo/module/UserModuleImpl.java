@@ -25,7 +25,11 @@ public class UserModuleImpl extends BaseModuleImpl {
         LoginResult result = new LoginResult();
         result.success = true;
         result.username = username;
-        return Observable.just(result);
+
+        LoginResult result2 = new LoginResult();
+        result2.success = false;
+        result2.username = password;
+        return Observable.just(result, result2);
     }
 
 }

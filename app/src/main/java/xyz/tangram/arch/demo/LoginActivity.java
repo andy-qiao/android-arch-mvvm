@@ -42,7 +42,7 @@ public class LoginActivity extends LifecycleActivity implements View.OnClickList
     private Observer<ModuleResult<LoginResult>> mLoginObserver = new Observer<ModuleResult<LoginResult>>() {
         @Override
         public void onChanged(@Nullable ModuleResult<LoginResult> result) {
-            Toast.makeText(getApplicationContext(), "data=" + result.data() + " e=" + result.throwable(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "data=" + result.data + " e=" + result.error, Toast.LENGTH_SHORT).show();
         }
     };
 

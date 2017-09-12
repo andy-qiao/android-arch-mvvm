@@ -24,7 +24,6 @@ public class ModuleCall<T> {
     private volatile boolean mDone = false;
     private volatile boolean mCanceled = false;
     private boolean mExecuted = false;
-    private ModuleResult<T> mResult = new ModuleResult<>();
 
     void setObservable(Object observable) {
         mObservable = observable;
@@ -79,18 +78,20 @@ public class ModuleCall<T> {
 
             @Override
             public void onNext(@NonNull T t) {
-                mResult.data(t);
+                ModuleResult<T> result = new ModuleResult<>(t, null);
+                doCallback(result);
             }
 
             @Override
             public void onError(@NonNull Throwable e) {
-                mResult.throwable(e);
-                done();
+                ModuleResult<T> result = new ModuleResult<>(null, e);
+                doCallback(result);
+                mDone = true;
             }
 
             @Override
             public void onComplete() {
-                done();
+                mDone = true;
             }
         });
     }
@@ -104,14 +105,16 @@ public class ModuleCall<T> {
 
             @Override
             public void onSuccess(@NonNull T t) {
-                mResult.data(t);
-                done();
+                ModuleResult<T> result = new ModuleResult<>(t, null);
+                doCallback(result);
+                mDone = true;
             }
 
             @Override
             public void onError(@NonNull Throwable e) {
-                mResult.throwable(e);
-                done();
+                ModuleResult<T> result = new ModuleResult<>(null, e);
+                doCallback(result);
+                mDone = true;
             }
         });
     }
@@ -125,18 +128,20 @@ public class ModuleCall<T> {
 
             @Override
             public void onNext(T t) {
-                mResult.data(t);
+                ModuleResult<T> result = new ModuleResult<>(t, null);
+                doCallback(result);
             }
 
             @Override
             public void onError(Throwable t) {
-                mResult.throwable(t);
-                done();
+                ModuleResult<T> result = new ModuleResult<>(null, t);
+                doCallback(result);
+                mDone = true;
             }
 
             @Override
             public void onComplete() {
-                done();
+                mDone = true;
             }
         });
     }
@@ -150,29 +155,30 @@ public class ModuleCall<T> {
 
             @Override
             public void onSuccess(@NonNull T t) {
-                mResult.data(t);
-                done();
+                ModuleResult<T> result = new ModuleResult<>(t, null);
+                doCallback(result);
+                mDone = true;
             }
 
             @Override
             public void onError(@NonNull Throwable e) {
-                mResult.throwable(e);
-                done();
+                ModuleResult<T> result = new ModuleResult<>(null, e);
+                doCallback(result);
+                mDone = true;
             }
 
             @Override
             public void onComplete() {
-                done();
+                mDone = true;
             }
         });
     }
 
-    private void done() {
-        mDone = true;
+    private void doCallback(ModuleResult<T> result) {
         if (mModuleCallback == null || mCanceled) {
             return;
         }
-        mModuleCallback.onModuleCallback(mResult);
+        mModuleCallback.onModuleCallback(result);
     }
 
 }
