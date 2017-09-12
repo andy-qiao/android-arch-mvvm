@@ -10,8 +10,10 @@ import io.reactivex.Observable;
 import io.reactivex.Observer;
 import io.reactivex.Single;
 import io.reactivex.SingleObserver;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * Module异步方法调用返回值封装，可进行取消操作和设置回调
@@ -70,7 +72,7 @@ public class ModuleCall<T> {
     }
 
     private void subscribeObservable(Observable<T> observable) {
-        observable.subscribe(new Observer<T>() {
+        observable.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(new Observer<T>() {
             @Override
             public void onSubscribe(@NonNull Disposable d) {
                 mCancelHandle = d;
@@ -97,7 +99,7 @@ public class ModuleCall<T> {
     }
 
     private void subscribeSingle(Single<T> single) {
-        single.subscribe(new SingleObserver<T>() {
+        single.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(new SingleObserver<T>() {
             @Override
             public void onSubscribe(@NonNull Disposable d) {
                 mCancelHandle = d;
@@ -120,7 +122,7 @@ public class ModuleCall<T> {
     }
 
     private void subscribeFlowable(Flowable<T> flowable) {
-        flowable.subscribe(new FlowableSubscriber<T>() {
+        flowable.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(new FlowableSubscriber<T>() {
             @Override
             public void onSubscribe(@NonNull Subscription s) {
                 mCancelHandle = s;
@@ -147,7 +149,7 @@ public class ModuleCall<T> {
     }
 
     private void subscribeMaybe(Maybe<T> maybe) {
-        maybe.subscribe(new MaybeObserver<T>() {
+        maybe.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(new MaybeObserver<T>() {
             @Override
             public void onSubscribe(@NonNull Disposable d) {
                 mCancelHandle = d;
