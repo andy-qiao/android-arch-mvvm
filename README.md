@@ -205,7 +205,7 @@ class ModuleManager {
 
 * Mudule接口定义的方法返回值若非`ModuleCall<T>`，则其关联的实现类必须有相同签名和返回值类型的方法
 
-* Module接口暴露给ViewModule调用，它代理了相应的实现类的方法
+* Module接口暴露给ViewModel调用，它代理了相应的实现类的方法
 
 #### 关于Observable，Flowable，Single，Maybe
 
@@ -549,7 +549,7 @@ public class ModuleDelegate {
 这种方案有个明显的缺点：一个ViewModel调用了多少个Module，就将产生多少个Module实例，虽然ViewModel销毁后，这些实例也随之可被回收，还是有些性能代价。现在`LoginViewModel`可简化为：
 
 ```
-public class LoginlViewModel extends ViewModel {
+public class LoginlViewModel extends BaseViewModel {
 	public final MutableLiveData<ModuleResult<LoginResult>> loginResult = new MutableLiveData<>();
     
     public void login(String username, String password) {
